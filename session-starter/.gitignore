@@ -1,0 +1,26 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Local SQLite database files
+*.db
+
+# Scratch scripts (M0 crash-reproduction, ad-hoc verification) — never committed
+scratch/
+
+# Generated demo/runtime output from alert-check and send_alert
+outbox/
+
+# Environment / secrets
+.env
+
+# Claude Code generated local config & hook debug logs
+.claude/settings.local.json
+.claude/hook-log.jsonl
+post-log.json
+pre-log.json
+
+# OS files
+.DS_Store

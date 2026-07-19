@@ -1,0 +1,35 @@
+{
+  "name": "ecommerce-query-utils",
+  "version": "1.0.0",
+  "description": "A TypeScript library of read-only SQLite query functions over an e-commerce schema",
+  "type": "module",
+  "main": "dist/src/main.js",
+  "scripts": {
+    "setup": "npm install && node ./scripts/init-claude.js",
+    "start": "tsx src/main.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "sdk": "tsx sdk.ts",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "sqlite",
+    "typescript",
+    "ecommerce",
+    "database",
+    "queries"
+  ],
+  "author": "Animesh",
+  "license": "ISC",
+  "dependencies": {
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.5",
+    "@types/node": "^24.0.13",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -43,17 +43,7 @@ npm run typecheck
 
 # Run tests (must exit 0 before any task is done — constitution.md §4)
 npm test
-
-# Seed deterministic demo data (2 stale pending, 1 fresh pending, 1 shipped)
-npm run seed:demo
-
-# Run the stale-order-alerts feature's "cron" entry point
-npm run alert:check
 ```
-
-## Stale-Order Alerts Feature
-
-`src/alerts/format.ts` (PII-masked alert payload), `src/alerts/outbox.ts` (deduped, append-only JSONL delivery), and `src/alert-check.ts` (the daily entry point — separate from `main.ts`, see constitution §3) implement the feature specified in [`specs/stale-order-alerts/spec.md`](./specs/stale-order-alerts/spec.md). `mcp/alert-server.ts` exposes `send_alert`/`list_sent_alerts` as an MCP server (registered project-scoped in `.mcp.json`) so the agent can verify its own work. See [`worksheet.md`](./worksheet.md) for the full build history.
 
 ## Working with Queries
 
@@ -78,3 +68,4 @@ export async function getCustomerByEmail(db: Database, email: string): Promise<a
 - Critical: `schema.ts` is the source of truth for this release and is immutable — code reconciles to `schema.ts`, never the reverse. See [constitution.md](./constitution.md) §1.
 - Critical: All database queries must be written in the ./src/queries dir. This is enforced by a hook, not just convention — see `hooks/scope_guard.js`, wired in `.claude/settings.json`.
 - Critical: no task is "done" mid-turn on red — `hooks/green_gate.js` blocks the Stop event until `npm run typecheck && npm test` both pass. See `hooks/audit_log.js` for the append-only tool-call audit trail.
+- Next up (not yet built): the stale-order-alerts feature specified in [`specs/stale-order-alerts/spec.md`](./specs/stale-order-alerts/spec.md) — implement it through Plan Mode, then build an MCP server (`mcp/alert-server.ts`) exposing `send_alert`/`list_sent_alerts`.
