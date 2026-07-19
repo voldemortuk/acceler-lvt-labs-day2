@@ -1,0 +1,187 @@
+openapi: 3.1.0
+info:
+  title: Tasks API
+  version: 1.0.0
+  description: >
+    Single-user, single-process task tracker. No authentication in this
+    release. See specs/001-tasks-api/spec.md for the source-of-truth
+    behavior specification.
+servers:
+  - url: http://localhost:{port}
+    variables:
+      port:
+        default: "3000"
+
+paths:
+  /tasks:
+    get:
+      summary: List all tasks
+      description: >
+        Returns every task, ordered per FR-004a:
+          1. Overdue open tasks, due date ascending.
+          2. Remaining open tasks, due date ascending (no-due-date last).
+          3. Completed tasks, completedAt descending.
+        The `overdue` field is derived at request time in the server's local
+        timezone.
+      operationId: listTasks
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tasks]
+                additionalProperties: false
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TaskView"
+
+    post:
+      summary: Create a task
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskView"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /tasks/{id}/complete:
+    post:
+      summary: Mark a task complete (idempotent)
+      operationId: completeTask
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Task is complete (whether it was already or just transitioned).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskView"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tasks/{id}:
+    delete:
+      summary: Delete a task
+      operationId: deleteTask
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+
+  schemas:
+    CreateTaskRequest:
+      type: object
+      required: [title]
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Trimmed server-side; must be non-empty after trim.
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: Calendar date, YYYY-MM-DD. Optional.
+
+    TaskView:
+      type: object
+      required: [id, title, dueDate, status, createdAt, completedAt, overdue]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        status:
+          type: string
+          enum: [open, complete]
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        overdue:
+          type: boolean
+          description: Derived server-side at read time.
+
+    ErrorBody:
+      type: object
+      required: [error, message]
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+          enum: [validation_error, not_found, internal_error]
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            required: [path, message]
+            properties:
+              path:
+                type: string
+              message:
+                type: string
+
+  responses:
+    ValidationError:
+      description: Request body failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error: validation_error
+            message: title must be at least 1 character
+            details:
+              - path: title
+                message: String must contain at least 1 character(s)
+
+    NotFound:
+      description: No task with the given id.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error: not_found
+            message: task not found
