@@ -56,10 +56,9 @@ This means the live session opens with everyone already past the "why does this 
 |---|---|---|
 | 0:00–0:15 | **Orient** | Walk through what M1–M3 already did *for* them (constitution, spec, hooks) — show `final-complete-project/worksheet.md`'s M1 interview and the M3 blocked-hook transcripts as a "here's what fighting for this looked like" narrative, so the pre-work doesn't feel like it was skipped, it was inherited. |
 | 0:15–0:20 | **Confirm environment** | Everyone's `session-starter/` copy: `npm run typecheck && npm test` green, hooks visible via `/hooks`. Fix any stragglers fast. |
-| 0:20–0:55 | **Build the feature (M4, part 1)** | Plan Mode against `specs/stale-order-alerts/spec.md` v1.2: `findStalePendingOrders`, `src/alerts/format.ts`, `src/alerts/outbox.ts`, `src/alert-check.ts`. Push for real Plan Mode interrogation, not rubber-stamping — the spec's already thorough, so this should move faster than the original 90–120 min budget. If a group falls behind, `final-complete-project/src/` is the answer key to unblock from, not to copy wholesale. |
-| 0:55–1:25 | **Build the MCP server (M4, part 2)** | `mcp/alert-server.ts` (`send_alert`, `list_sent_alerts`), registered via `claude mcp add --scope project`. **Known gotcha** (hit today, budget time for it): a freshly-added `.mcp.json` server does not show up in `/mcp` until the session restarts — plan for one restart here, don't burn 10 minutes debugging a phantom failure. |
-| 1:25–1:45 | **End-to-end + failure drill** | Fresh session, agent-driven: seed demo data, run `alert:check` twice (prove idempotency via `list_sent_alerts`), one manual `send_alert` call, then the failure drill (`ALERT_OUTBOX="./ecommerce.db/alerts.jsonl" npm run alert:check`). This is the payoff moment — the whole spec-first chain either holds together live or it doesn't. |
-| 1:45–2:00 | **Debrief** | Each learner/pair names one moment they had to force an agent to actually fail (per finding #11 above) and fills in `worksheet.md`'s closing reflection. Push branches. |
+| 0:20–1:25 | **Build the feature + MCP server (M4)** | Full step-by-step walkthrough — with the real Plan Mode prompts, model interview answers, and both new findings (dedupe-namespace collision, the MCP-restart gotcha) — lives in **[`session-starter/README.md`](./session-starter/README.md#live-session-walkthrough-this-is-the-actual-task-for-today)**, since that's the folder everyone is actually working in. Push for real Plan Mode interrogation, not rubber-stamping. If a group falls behind, `final-complete-project/src/` is the answer key to unblock from, not to copy wholesale. |
+| 1:25–1:45 | **End-to-end + failure drill** | Also detailed in `session-starter/README.md` — fresh session, agent-driven: seed demo data, run `alert:check` twice (prove idempotency via `list_sent_alerts`), one manual `send_alert` call, then the failure drill. This is the payoff moment — the whole spec-first chain either holds together live or it doesn't. |
+| 1:45–2:00 | **Debrief** | Each learner/pair names one moment they had to force an agent to actually fail (see finding #11 above) and fills in `worksheet.md`'s closing reflection. Push branches. |
 
 ### If the room runs long
 
@@ -72,5 +71,5 @@ Same principle as the original design: **every stopping point is a valid stoppin
 - **The assignment brief**: `Advance Assignment/README.md`
 - **Facilitator pitch scripts, answer key, rubric**: `Advance Assignment/FACILITATOR-NOTES.md`
 - **The reference solution** (read this to see exactly what "done" looks like): `final-complete-project/`, especially `final-complete-project/worksheet.md`
-- **The 2-hour session starting point**: `session-starter/`
+- **The 2-hour session starting point, and the full step-by-step live-session walkthrough** (Plan Mode prompts, model answers, both new findings, the failure drill): `session-starter/README.md`
 - **A formatted Instructor Guide** (design notes, run-of-show, cheat sheet): `Operation Stale Orders - INSTRUCTOR GUIDE.docx` (shared separately, updated alongside this README)

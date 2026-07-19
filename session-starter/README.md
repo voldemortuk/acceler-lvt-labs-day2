@@ -602,4 +602,102 @@ If you are working in this repository:
 
 Released under the **ISC License**. See [`LICENSE`](./LICENSE) for the full text.
 
+---
+
+## Live Session Walkthrough (this is the actual task for today)
+
+This section is the step-by-step guide for the 2-hour live session — see the root [`README.md`](../README.md) for the overall repo map and agenda. Everything below happens **inside this folder.**
+
+### What's already done (M1–3) — read this, don't redo it
+
+- **`constitution.md`** — 5 non-negotiables: `schema.ts` is the immutable source of truth this release; all SQL lives in `src/queries/`, parameterized; query modules stay pure reads (no side effects); `npm run typecheck && npm test` must both exit 0 before anything is "done"; PII in outbound alerts is masked by default.
+- **`specs/stale-order-alerts/spec.md`** (v1.2) — the full spec you're about to implement against, the product of a real 12-question adversarial interview. Read it before you start Plan Mode — the PII policy, the dedupe model `(order_id, calendar_day)`, the failure-mode split (a systemic outbox failure aborts the whole run; a single bad order is logged and skipped), and the exact outbox line shape (§2.1) are all already decided. Don't re-derive them; implement them.
+- **`worksheet.md`** — the real M1–3 record (gap hunt, grill-me interview, plan interventions, blocked-hook transcripts) from building the reference solution this is checkpointed from. Worth skimming for context on *why* the spec says what it says.
+- **`hooks/`** — `scope_guard.js` (blocks raw SQL outside `src/queries/`), `green_gate.js` (blocks ending your turn while `typecheck`/`test` are red), `audit_log.js` (append-only tool-call log). Wired in `.claude/settings.json`. Confirm they loaded: `/hooks` should show all three.
+
+**One lesson from building M1–3 worth carrying into today:** a capable, rule-aware agent will often satisfy a rule voluntarily *before* you ever see what enforcing it looks like — relocating a disallowed query instead of writing it where asked, fixing a red build before ever trying to stop. That looks identical to the guardrail working, but proves nothing. If you want to actually confirm a hook works today, you may need to explicitly tell the agent *not* to work around a rule and to attempt the violation anyway.
+
+### Step 1 — implement the feature (Plan Mode, ~35 min)
+
+```
+/plan
+
+Point me at specs/stale-order-alerts/spec.md and implement the stale-order-
+alerts feature per that spec (v1.2) and constitution.md. Read both files
+first. Expected shape:
+
+- src/queries/order_queries.ts: findStalePendingOrders(db, thresholdDays=3,
+  now) — parameterized, tested against the existing in-memory harness.
+- src/alerts/format.ts: builds the alert payload per spec §2.1's exact field
+  shape, applying the PII masking policy (mask by default; ALERT_INCLUDE_PII
+  =true opts into raw values). Unit-tested both ways.
+- src/alerts/outbox.ts: appends JSONL to outbox/alerts.jsonl (path
+  overridable via ALERT_OUTBOX), creates the parent directory if missing,
+  implements the (order_id, calendar_day) dedupe contract by reading the
+  outbox before writing. The single delivery/dedupe implementation — no
+  second one, even once the MCP server needs to write here too.
+- src/alert-check.ts + an "alert:check" npm script — the cron entry point:
+  query -> format -> deliver, one structured log line per outcome
+  (sent/skipped-duplicate/error), exit 0 on success, exit 1 on delivery
+  failure with no partial writes.
+- scripts/seed-demo.ts + a "seed:demo" npm script — seeds 2 stale pending
+  orders (>=4 and >=10 days old), 1 fresh pending order, 1 shipped order,
+  all deterministic relative to an explicit reference time.
+
+Ask me questions about anything the spec leaves ambiguous before writing a
+plan. Tests should be interleaved with the implementation, not batched.
+```
+
+**Actually interrogate plan v1 before approving it** — don't rubber-stamp. Watch specifically for: any attempt to add a new column/table to `schema.ts` for dedupe bookkeeping (the spec already decided the outbox file itself is the dedupe record — `schema.ts` stays untouched, no exceptions); tests batched at the end instead of interleaved per file; the query accidentally using `julianday('now')` or similar wall-clock SQL instead of the injected `now`.
+
+### Step 2 — build the MCP server (~30 min)
+
+```
+Write mcp/alert-server.ts — a stdio MCP server (McpServer + StdioServerTransport
++ zod). Two tools:
+1. send_alert — input { channel, order_id, dedupe_key, summary, body }.
+   Delivers through the same src/alerts/outbox.ts used by alert-check.ts —
+   one delivery/dedupe implementation, two callers.
+2. list_sent_alerts — input { channel? }. Reads back delivered alerts from
+   the outbox so the agent can verify its own work.
+
+Register it: claude mcp add --scope project alert-mcp -- npx tsx mcp/alert-server.ts
+```
+
+**Known gotcha, confirmed real building the reference solution:** a freshly-registered project-scoped MCP server does **not** show up in `/mcp` until the session restarts. Exit and start a fresh `claude` session (confirm your cwd is this folder — `.mcp.json` is project-scoped), then `/mcp` should list `alert-mcp` connected with 2 tools. Budget this restart — it's expected, not a bug to debug.
+
+**A real design question worth asking before you consider this done** — this exact gap was found building the reference solution: `send_alert` and `alert-check.ts` now both write into the same outbox, sharing one `(order_id, calendar_day)` dedupe key by default. That means an unrelated manual alert for an order could silently suppress that day's automated stale-order alert for the *same* order, or vice versa — neither the feature spec nor an MCP-specific spec addressed this (the feature spec deliberately deferred the MCP tool's own contract). Ask your agent directly:
+```
+send_alert and alert-check.ts now share one dedupe namespace
+(order_id, calendar_day) in the same outbox. Was that deliberate, or should
+they be namespaced separately (e.g. a source field)? If not deliberate, fix
+it.
+```
+The reference solution's fix: add a `source` field to the outbox's internal dedupe key — automated alerts stay unset/default-bucketed (the public line shape is unchanged), manual `send_alert` calls get `source: "mcp-send-alert"`. This is genuinely not obvious until both callers exist.
+
+### Step 3 — the end-to-end run (~15 min), fresh session
+
+```
+Run the stale-order alert operation end to end and verify your own work:
+1. Delete ecommerce.db, recreate the schema, and run scripts/seed-demo.ts.
+2. Run `npm run alert:check`.
+3. Use the alert-mcp list_sent_alerts tool to report exactly how many
+   alerts were delivered and for which order ids.
+4. Run `npm run alert:check` again, then use list_sent_alerts to prove
+   no duplicates were added.
+Report what you did and what the outbox proves, step by step.
+```
+Expect: exactly the 2 seeded stale orders delivered (fresh/shipped excluded), second run produces zero new lines. Then one manual delivery for good measure: *"Use `send_alert` to deliver a test alert to `#order-alerts` for order 999 with dedupe key `manual-test-1`, then confirm it via `list_sent_alerts`."*
+
+### Step 4 — the failure drill (~10 min)
+
+```bash
+ALERT_OUTBOX="./ecommerce.db/alerts.jsonl" npm run alert:check; echo "exit=$?"
+```
+`./ecommerce.db` is a file, not a directory, on every OS — an impossible path that forces a clean failure without faking a full disk. Expect: exit code ≠ 0, one structured error log line, and the real `outbox/alerts.jsonl` confirmed byte-unchanged afterward (`cat outbox/alerts.jsonl | wc -l` before and after should match).
+
+### Step 5 — close the paperwork (~10 min)
+
+Fill in `worksheet.md`'s M4 section: the plan v1 → intervention → v2 for the implementation, the dedupe-namespace defect → spec-patch row (a second one, if you find another — the assignment wants ≥2 total across the whole build), the e2e run summary, the failure-drill result, steering failures (even if none), and a one-paragraph closing reflection. Commit and push your branch.
+
 Copyright (c) 2026 Animesh.
