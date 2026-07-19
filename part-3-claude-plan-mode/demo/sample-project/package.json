@@ -1,0 +1,20 @@
+{
+  "name": "plan-mode-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sample project for the Day 2 Plan Mode demo. Deliberately mixes route + business logic + DB access in a single handler so the refactor is worth planning.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}
